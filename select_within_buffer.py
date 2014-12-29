@@ -28,6 +28,7 @@ import resources_rc
 from select_within_buffer_dialog import SelectWithinBufferDialog
 import os.path
 from qgis.gui import *
+from qgis.core import *
 
 
 class SelectWithinBuffer:
@@ -172,12 +173,35 @@ class SelectWithinBuffer:
             parent=self.iface.mainWindow())
 
         result = QObject.connect(self.clickTool, SIGNAL("canvasClicked(const QgsPoint &, Qt::MouseButton)"), self.handleMouseDown)
+        result = QObject.connect(self.clickTool, SIGNAL("canvasClicked(const QgsPoint &, Qt::MouseButton)"), self.selectFeature)
+        QMessageBox.information( self.iface.mainWindow(),"Info", "connect = %s"%str(result) )
+
         #QMessageBox.information( self.iface.mainWindow(),"Info", "connect = %s"%str(result) )
 
     def handleMouseDown(self, point, button):
-        #QMessageBox.information( self.iface.mainWindow(),"Info", "X,Y = %s,%s" % (str(point.x()),str(point.y())) )
+        QMessageBox.information( self.iface.mainWindow(),"Info", "X,Y = %s,%s" % (str(point.x()),str(point.y())) )
         self.dlg.clearTextBrowser()
         self.dlg.setTextBrowser( str(point.x()) + " , " +str(point.y()) )
+
+    def selectFeature(self, point, button):
+        QMessageBox.information( self.iface.mainWindow(),"Info", "in selectFeature function" )
+        # setup the provider select to filter results based on a rectangle
+        pntGeom = QgsGeometry.fromPoint(point)
+        # scale-dependent buffer of 2 pixels-worth of map units
+        pntBuff = pntGeom.buffer( (self.canvas.mapUnitsPerPixel() * 2),0)
+        rect = pntBuff.boundingBox()
+        # get currentLayer and dataProvider
+        cLayer = self.canvas.currentLayer()
+        selectList = []
+        if cLayer:
+            request = QgsFeatureRequest()
+            request.setFilterRect(rect)
+            for feat in cLayer.getFeatures(request):
+                selectList.append(feat.id())
+
+            cLayer.setSelectedFeatures(selectList)
+        else:
+            QMessageBox.information(self.iface.mainWindow(), "Info", "No layer currently selected in TOC" )
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
